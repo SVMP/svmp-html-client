@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>SVMP HTML5 Client</title>
+		<script src="/js/dependencies/Long.min.js"></script>
+		<script src="/js/dependencies/ByteBufferAB.min.js"></script>
+		<script src="/js/dependencies/ProtoBuf.min.js"></script>
+		<script src="/js/dependencies/jquery-2.1.1.min.js"></script>
+	</head>
+	<body>
+		<form id="testform">
+			<input type="text" id="testtext" name="testtext">
+			<button value="submit">submit</button>
+		</form>
+		<script>
+			var ws = new WebSocket("ws://10.254.1.86/ws");
+			ws.onopen = function() {
+				console.log("ws opened");
+			};
+
+			ws.onmessage = function(ev) {
+				console.log("Message received: " + ev.data);
+			};
+
+			ws.onclose = function(ev) {
+				console.log("socket close: " + ev.data);
+			};
+			
+			ws.onerror = function(ev) {
+				console.log("socket error: " + ev.data);
+			};
+
+			$('#testform').submit(function(event) {
+					ws.send($('#testtext').val());
+					event.preventDefault();
+			});
+		</script>
+	</body>
+</html>
