@@ -2,18 +2,29 @@
 <html>
 	<head>
 		<title>SVMP HTML5 Client</title>
-		<script src="/js/dependencies/Long.min.js"></script>
-		<script src="/js/dependencies/ByteBufferAB.min.js"></script>
-		<script src="/js/dependencies/ProtoBuf.min.js"></script>
-		<script src="/js/dependencies/jquery-2.1.1.min.js"></script>
+		<link rel="stylesheet" href="/static/css/index.css" />
 	</head>
 	<body>
-		<form id="testform">
-			<input type="text" id="testtext" name="testtext">
-			<button value="submit">submit</button>
-		</form>
+		<div id="loginbox">
+			<form id="loginform">
+				<label for="proxyhost">Proxy Host:</label>
+				<input type="text" id="proxyhost" name="proxyhost"><br />
+				<label for="proxyport">Proxy Port:</label>
+				<input type="text" id="proxyport" name="proxyport"><br />
+				<label for="username">Username:</label>
+				<input type="text" id="username" name="username"><br />
+				<label for="password">Password:</label>
+				<input type="text" id="password" name="password"><br />
+				<button value="submit">Go!</button>
+			</form>
+		</div>
+		<script src="/static/js/dependencies/Long.min.js"></script>
+		<script src="/static/js/dependencies/ByteBufferAB.min.js"></script>
+		<script src="/static/js/dependencies/ProtoBuf.min.js"></script>
+		<script src="/static/js/dependencies/jquery-2.1.1.min.js"></script>
 		<script>
-			var ws = new WebSocket("ws://10.254.1.86/ws");
+			// var ws = new WebSocket("ws://10.254.1.86/ws");
+			var ws = new WebSocket("ws://localhost:8080/ws");
 			ws.onopen = function() {
 				console.log("ws opened");
 			};
@@ -30,9 +41,18 @@
 				console.log("socket error: " + ev.data);
 			};
 
-			$('#testform').submit(function(event) {
-					ws.send($('#testtext').val());
-					event.preventDefault();
+			var ProtoBuf = dcodeIO.ProtoBuf;
+			var builder = ProtoBuf.loadProtoFile("static/data/container.proto");
+			var svmp = builder.build("svmp");
+
+			$('#loginform').submit(function(event) {
+				var host = $('#proxyhost').val();
+				var port = $('#proxyport').val();
+				var username = $('#username').val();
+				var password = $('#password').val();
+				var connpacket = new svmp.Container({"ctype" : 0, "proxyhost" : host, "proxyport": parseInt(port)});
+				ws.send(connpacket.encode().toArrayBuffer())
+				event.preventDefault();
 			});
 		</script>
 	</body>

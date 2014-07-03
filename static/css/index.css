@@ -1,0 +1,9 @@
+#loginbox {
+	border-style: double;
+	border-width: 10px;
+}
+#loginform {
+	margin-top: 5px;
+	margin-bottom: 5px;
+	margin-left: 5px;
+}
