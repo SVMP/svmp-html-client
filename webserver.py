@@ -2,20 +2,36 @@ from tornado import web, ioloop, websocket, iostream
 import time
 import socket
 import protocols
+from ConfigParser import ConfigParser
+
+apphost = appport = None
 
 def main():
+    global appport, apphost
+    config = ConfigParser()
+    config.read('config.cfg')
+    apphost = config.get('core', 'host')
+    appport = config.getint('core', 'port')
     app = web.Application([(r'/ws', SocketPassthrough),
                            (r'/static/(.*)', web.StaticFileHandler, {"path":
                                "./static"}),
                            (r'/(index\.html)?', IndexHandler)])
-    app.listen(8080)
+    app.listen(appport, address=apphost)
     ioloop.IOLoop.instance().start()
 
 class IndexHandler(web.RequestHandler):
     def get(self, dummy):
-        self.render("templates/index.html")
+        self.render("templates/index.html", host=apphost, port=appport)
 
 class SocketPassthrough(websocket.WebSocketHandler):
+    def wrapResponse(self, responsebytes):
+        response = protocols.svmp_pb2.Response()
+        response.ParseFromString(responsebytes)
+        cont = protocols.container_pb2.Container()
+        cont.ctype = protocols.container_pb2.Container.RESPONSE
+        cont.response = response
+        self.send(cont)
+
     def readResponseHeader(self, headerByte, readBytes=None):
         print type(headerByte)
         if headerByte & (1 << 7):
@@ -32,7 +48,7 @@ class SocketPassthrough(websocket.WebSocketHandler):
             varintlist = varintlist[::-1]
             varintstr = ''.join(varintlist)
             varint = int(varintstr, 2)
-            self.connstream.read_bytes(varint, lambda x : self.send(x))
+            self.connstream.read_bytes(varint, self.wrapResponse)
 
     def open(self):
         self.set_nodelay(True)
@@ -55,7 +71,9 @@ class SocketPassthrough(websocket.WebSocketHandler):
             self.connstream = iostream.IOStream(self.rawsock)
             self.connstream.connect((host, port))
             self.connected = True
-            self.send()
+            connack = protocols.container_pb2.Container()
+            connack.ctype = protocols.container_pb2.Container.CONNECTED
+            self.send(connack)
         elif cont.ctype == protocols.container_pb2.Container.REQUEST:
             self.connstream.write(cont.request)
             self.connstream.read_bytes(1, callback=self.readResponseHeader)

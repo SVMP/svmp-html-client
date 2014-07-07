@@ -25,13 +25,19 @@
 		<script src="/static/js/dependencies/jquery-2.1.1.min.js"></script>
 		<script>
 			// var ws = new WebSocket("ws://10.254.1.86/ws");
-			var ws = new WebSocket("ws://localhost:8080/ws");
+			var ws = new WebSocket("ws://{{ host }}:{{ port }}/ws");
+			var ProtoBuf = dcodeIO.ProtoBuf;
+			var builder = ProtoBuf.loadProtoFile("static/data/container.proto");
+			var svmp = builder.build("svmp");
+
 			ws.onopen = function() {
 				console.log("ws opened");
 			};
 
 			ws.onmessage = function(ev) {
 				console.log("Message received: " + ev.data);
+				var cont = new svmp.Container();
+				var decodedcontainer = cont.decode(ev.data);
 			};
 
 			ws.onclose = function(ev) {
@@ -41,18 +47,14 @@
 			ws.onerror = function(ev) {
 				console.log("socket error: " + ev.data);
 			};
-
-			var ProtoBuf = dcodeIO.ProtoBuf;
-			var builder = ProtoBuf.loadProtoFile("static/data/container.proto");
-			var svmp = builder.build("svmp");
-
+	
 			$('#loginform').submit(function(event) {
 				var host = $('#proxyhost').val();
 				var port = $('#proxyport').val();
 				var username = $('#username').val();
 				var password = $('#password').val();
 				var connpacket = new svmp.Container({"ctype" : 0, "proxyhost" : host, "proxyport": parseInt(port)});
-				ws.send(connpacket.encode().toArrayBuffer())
+				ws.send(connpacket.encode().toArrayBuffer());
 				event.preventDefault();
 			});
 		</script>

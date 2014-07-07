@@ -7,8 +7,9 @@ message Container {
 	required ContainerType ctype = 1;
 	enum ContainerType {
 		CONNECT		= 0;
-		REQUEST		= 1;
-		RESPONSE	= 2;
+		CONNECTED	= 1;
+		REQUEST		= 2;
+		RESPONSE	= 3;
 	}
 	optional string proxyhost = 2;
 	optional int32 proxyport = 3;
