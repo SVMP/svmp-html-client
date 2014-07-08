@@ -24,8 +24,8 @@
 		<script src="/static/js/dependencies/ProtoBuf.min.js"></script>
 		<script src="/static/js/dependencies/jquery-2.1.1.min.js"></script>
 		<script>
-			// var ws = new WebSocket("ws://10.254.1.86/ws");
 			var ws = new WebSocket("ws://{{ host }}:{{ port }}/ws");
+			ws.binaryType = "arraybuffer";
 			var ProtoBuf = dcodeIO.ProtoBuf;
 			var builder = ProtoBuf.loadProtoFile("static/data/container.proto");
 			var svmp = builder.build("svmp");
@@ -36,8 +36,10 @@
 
 			ws.onmessage = function(ev) {
 				console.log("Message received: " + ev.data);
-				var cont = new svmp.Container();
-				var decodedcontainer = cont.decode(ev.data);
+				window.tempdata = ev.data;
+				var contbuilder = builder.build("svmp.Container");
+				var decodedcontainer = contbuilder.decode(ev.data);
+				console.log(decodedcontainer);
 			};
 
 			ws.onclose = function(ev) {
@@ -49,13 +51,17 @@
 			};
 	
 			$('#loginform').submit(function(event) {
+				event.preventDefault();
 				var host = $('#proxyhost').val();
 				var port = $('#proxyport').val();
 				var username = $('#username').val();
 				var password = $('#password').val();
 				var connpacket = new svmp.Container({"ctype" : 0, "proxyhost" : host, "proxyport": parseInt(port)});
 				ws.send(connpacket.encode().toArrayBuffer());
-				event.preventDefault();
+				var areq = new svmp.AuthRequest({"type" : 1, "username" : username, "password" : password});
+				var req = new svmp.Request({"type" : 0, "authRequest": areq});
+				window.authpacket = new svmp.Container({"ctype" : 2, "request" : req});
+				ws.send(window.authpacket.encode().toArrayBuffer());
 			});
 		</script>
 	</body>

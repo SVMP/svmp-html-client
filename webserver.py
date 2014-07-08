@@ -16,21 +16,47 @@ def main():
                            (r'/static/(.*)', web.StaticFileHandler, {"path":
                                "./static"}),
                            (r'/(index\.html)?', IndexHandler)])
-    app.listen(appport, address=apphost)
+    app.listen(appport)
     ioloop.IOLoop.instance().start()
+
 
 class IndexHandler(web.RequestHandler):
     def get(self, dummy):
         self.render("templates/index.html", host=apphost, port=appport)
 
+
 class SocketPassthrough(websocket.WebSocketHandler):
+    def encodeVarint(value):
+        def getByte(val):
+            tmpval = ''
+            if val.bit_length() < 7:
+                tmpval = bin(val)[2:]
+                while len(tmpval) < 7:
+                    tmpval = '0' + tmpval
+            else:
+                tmpval = bin(num)[len(bin(num)) - 7:]
+            tmpval = int(tmpval, 2)
+            val >>= 7
+            if val != 0:
+                tmpval |= 1 << 7
+            else:
+                tmpval &= ~(1 << 7)
+            return val, tmpval
+
+        endbytes = []
+        value, tmpvalue = getByte(value)
+        endbytes.append(tmpvalue)
+        while value != 0:
+            value, tmpvalue = getByte(value)
+            endbytes.append(tmpvalue)
+        return ''.join([chr(i) for i in endbytes])
+
     def wrapResponse(self, responsebytes):
-        response = protocols.svmp_pb2.Response()
-        response.ParseFromString(responsebytes)
         cont = protocols.container_pb2.Container()
         cont.ctype = protocols.container_pb2.Container.RESPONSE
-        cont.response = response
-        self.send(cont)
+        cont.response.ParseFromString(responsebytes)
+        msg = cont.SerializeToString()
+        self.write_message(encodeVarint(len(msg)) + msg)
 
     def readResponseHeader(self, headerByte, readBytes=None):
         print type(headerByte)
@@ -52,7 +78,7 @@ class SocketPassthrough(websocket.WebSocketHandler):
 
     def open(self):
         self.set_nodelay(True)
-        self.keepalive = ioloop.PeriodicCallback(self.ping_wrap, 30000)
+        self.keepalive = ioloop.PeriodicCallback(lambda : self.ping(str(time.time())), 30000)
         self.keepalive.start()
         self.connected = False
         print('Client acquired')
@@ -73,9 +99,13 @@ class SocketPassthrough(websocket.WebSocketHandler):
             self.connected = True
             connack = protocols.container_pb2.Container()
             connack.ctype = protocols.container_pb2.Container.CONNECTED
-            self.send(connack)
-        elif cont.ctype == protocols.container_pb2.Container.REQUEST:
-            self.connstream.write(cont.request)
+            self.write_message(connack.SerializeToString())
+        elif cont.ctype == protocols.container_pb2.Container.REQUEST or cont.ctype == protocols.container_pb2.Container.RESPONSE:
+            if cont.ctype == protocols.container_pb2.Container.REQUEST:
+                msg = cont.request.SerializeToString()
+            else:
+                msg = cont.response.SerializeToString()
+            self.connstream.write(encodeVarint(len(msg)) + msg)
             self.connstream.read_bytes(1, callback=self.readResponseHeader)
             pass
         else:
@@ -87,9 +117,6 @@ class SocketPassthrough(websocket.WebSocketHandler):
     def on_pong(self, data):
         pass
 
-    def ping_wrap(self):
-        #print('sending ping')
-        self.ping(str(time.time()))
 
 if __name__ == '__main__':
     main()
