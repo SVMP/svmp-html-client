@@ -10,6 +10,7 @@ message Container {
 		CONNECTED	= 1;
 		REQUEST		= 2;
 		RESPONSE	= 3;
+		READPACKET	= 4;
 	}
 	optional string proxyhost = 2;
 	optional int32 proxyport = 3;

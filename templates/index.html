@@ -23,6 +23,7 @@
 		<script src="/static/js/dependencies/ByteBufferAB.min.js"></script>
 		<script src="/static/js/dependencies/ProtoBuf.min.js"></script>
 		<script src="/static/js/dependencies/jquery-2.1.1.min.js"></script>
+		<script src="/static/js/handlers.js"></script>
 		<script>
 			var ws = new WebSocket("ws://{{ host }}:{{ port }}/ws");
 			ws.binaryType = "arraybuffer";
@@ -35,11 +36,32 @@
 			};
 
 			ws.onmessage = function(ev) {
-				console.log("Message received: " + ev.data);
-				window.tempdata = ev.data;
+				//console.log("Message received: " + ev.data);
+				//window.tempdata = ev.data;
 				var contbuilder = builder.build("svmp.Container");
 				var decodedcontainer = contbuilder.decode(ev.data);
-				console.log(decodedcontainer);
+				console.log(decodedcontainer.ctype);
+				switch(decodedcontainer.ctype) {
+					case 0:
+						console.log("Erroneous CONNECT packet received");
+						break;
+					case 1:
+						window.connected = true;
+						ws.send(window.authpacket.encode().toArrayBuffer());
+						break;
+					case 2:
+						console.log("Erroneous REQUEST packet receieved");
+						break;
+					case 3:
+						handleResponse(decodedcontainer.response);
+						break;
+					case 4:
+						console.log("Erroneous READPACKET packet received");
+						break;
+					default:
+						console.log("Bad ctype in received packet: " + decodedcontainer.ctype);
+						break;
+				}
 			};
 
 			ws.onclose = function(ev) {
@@ -61,7 +83,7 @@
 				var areq = new svmp.AuthRequest({"type" : 1, "username" : username, "password" : password});
 				var req = new svmp.Request({"type" : 0, "authRequest": areq});
 				window.authpacket = new svmp.Container({"ctype" : 2, "request" : req});
-				ws.send(window.authpacket.encode().toArrayBuffer());
+				//ws.send(window.authpacket.encode().toArrayBuffer());
 			});
 		</script>
 	</body>

@@ -14,7 +14,7 @@ import svmp_pb2
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='container.proto',
   package='svmp',
-  serialized_pb='\n\x0f\x63ontainer.proto\x12\x04svmp\x1a\nsvmp.proto\"\xe9\x01\n\tContainer\x12,\n\x05\x63type\x18\x01 \x02(\x0e\x32\x1d.svmp.Container.ContainerType\x12\x11\n\tproxyhost\x18\x02 \x01(\t\x12\x11\n\tproxyport\x18\x03 \x01(\x05\x12\x1e\n\x07request\x18\x04 \x01(\x0b\x32\r.svmp.Request\x12 \n\x08response\x18\x05 \x01(\x0b\x32\x0e.svmp.Response\"F\n\rContainerType\x12\x0b\n\x07\x43ONNECT\x10\x00\x12\r\n\tCONNECTED\x10\x01\x12\x0b\n\x07REQUEST\x10\x02\x12\x0c\n\x08RESPONSE\x10\x03\x42\x02H\x03')
+  serialized_pb='\n\x0f\x63ontainer.proto\x12\x04svmp\x1a\nsvmp.proto\"\xf9\x01\n\tContainer\x12,\n\x05\x63type\x18\x01 \x02(\x0e\x32\x1d.svmp.Container.ContainerType\x12\x11\n\tproxyhost\x18\x02 \x01(\t\x12\x11\n\tproxyport\x18\x03 \x01(\x05\x12\x1e\n\x07request\x18\x04 \x01(\x0b\x32\r.svmp.Request\x12 \n\x08response\x18\x05 \x01(\x0b\x32\x0e.svmp.Response\"V\n\rContainerType\x12\x0b\n\x07\x43ONNECT\x10\x00\x12\r\n\tCONNECTED\x10\x01\x12\x0b\n\x07REQUEST\x10\x02\x12\x0c\n\x08RESPONSE\x10\x03\x12\x0e\n\nREADPACKET\x10\x04\x42\x02H\x03')
 
 
 
@@ -40,11 +40,15 @@ _CONTAINER_CONTAINERTYPE = _descriptor.EnumDescriptor(
       name='RESPONSE', index=3, number=3,
       options=None,
       type=None),
+    _descriptor.EnumValueDescriptor(
+      name='READPACKET', index=4, number=4,
+      options=None,
+      type=None),
   ],
   containing_type=None,
   options=None,
   serialized_start=201,
-  serialized_end=271,
+  serialized_end=287,
 )
 
 
@@ -101,7 +105,7 @@ _CONTAINER = _descriptor.Descriptor(
   is_extendable=False,
   extension_ranges=[],
   serialized_start=38,
-  serialized_end=271,
+  serialized_end=287,
 )
 
 _CONTAINER.fields_by_name['ctype'].enum_type = _CONTAINER_CONTAINERTYPE

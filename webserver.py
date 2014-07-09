@@ -34,7 +34,7 @@ class SocketPassthrough(websocket.WebSocketHandler):
                 while len(tmpval) < 7:
                     tmpval = '0' + tmpval
             else:
-                tmpval = bin(num)[len(bin(num)) - 7:]
+                tmpval = bin(val)[len(bin(val)) - 7:]
             tmpval = int(tmpval, 2)
             val >>= 7
             if val != 0:
@@ -57,11 +57,12 @@ class SocketPassthrough(websocket.WebSocketHandler):
         cont.response.ParseFromString(responsebytes)
         msg = cont.SerializeToString()
         self.write_message(msg, binary=True)
+        self.connstream.read_bytes(1, callback=self.readResponseHeader)
 
     def readResponseHeader(self, headerByte, readBytes=None):
-        print type(headerByte)
+        headerByte = ord(headerByte)
+        readBytes = readBytes or []
         if headerByte & (1 << 7):
-            readBytes = readBytes or []
             self.connstream.read_bytes(1, lambda x : self.readResponseHeader(x, readBytes + [headerByte]))
         else:
             fullHeader = readBytes + [headerByte]
@@ -102,14 +103,11 @@ class SocketPassthrough(websocket.WebSocketHandler):
             connack = protocols.container_pb2.Container()
             connack.ctype = protocols.container_pb2.Container.CONNECTED
             self.write_message(connack.SerializeToString(), binary=True)
-        elif cont.ctype == protocols.container_pb2.Container.REQUEST or cont.ctype == protocols.container_pb2.Container.RESPONSE:
-            if cont.ctype == protocols.container_pb2.Container.REQUEST:
-                msg = cont.request.SerializeToString()
-            else:
-                msg = cont.response.SerializeToString()
-            self.connstream.write(self.encodeVarint(len(msg)) + msg)
             self.connstream.read_bytes(1, callback=self.readResponseHeader)
-            pass
+        elif cont.ctype == protocols.container_pb2.Container.REQUEST:
+            msg = cont.request.SerializeToString()
+            self.connstream.write(self.encodeVarint(len(msg)) + msg)
+            #self.connstream.read_bytes(1, callback=self.readResponseHeader)
         else:
             print('Bad message received!')
 
