@@ -26,7 +26,7 @@ class IndexHandler(web.RequestHandler):
 
 
 class SocketPassthrough(websocket.WebSocketHandler):
-    def encodeVarint(value):
+    def encodeVarint(self, value):
         def getByte(val):
             tmpval = ''
             if val.bit_length() < 7:
@@ -56,14 +56,15 @@ class SocketPassthrough(websocket.WebSocketHandler):
         cont.ctype = protocols.container_pb2.Container.RESPONSE
         cont.response.ParseFromString(responsebytes)
         msg = cont.SerializeToString()
-        self.write_message(encodeVarint(len(msg)) + msg)
+        self.write_message(msg, binary=True)
 
     def readResponseHeader(self, headerByte, readBytes=None):
         print type(headerByte)
         if headerByte & (1 << 7):
-            self.connstream.read_bytes(1, lambda x : self.readResponseHeader(x, [headerByte] + readBytes if readBytes else []))
+            readBytes = readBytes or []
+            self.connstream.read_bytes(1, lambda x : self.readResponseHeader(x, readBytes + [headerByte]))
         else:
-            fullHeader = [headerByte] + readBytes
+            fullHeader = readBytes + [headerByte]
             varintlist = []
             for i in fullHeader:
                 j = bin(i)
@@ -85,6 +86,7 @@ class SocketPassthrough(websocket.WebSocketHandler):
 
     def on_close(self):
         self.keepalive.stop()
+        self.connstream.close()
         print('Client lost')
 
     def on_message(self, message):
@@ -99,13 +101,13 @@ class SocketPassthrough(websocket.WebSocketHandler):
             self.connected = True
             connack = protocols.container_pb2.Container()
             connack.ctype = protocols.container_pb2.Container.CONNECTED
-            self.write_message(connack.SerializeToString())
+            self.write_message(connack.SerializeToString(), binary=True)
         elif cont.ctype == protocols.container_pb2.Container.REQUEST or cont.ctype == protocols.container_pb2.Container.RESPONSE:
             if cont.ctype == protocols.container_pb2.Container.REQUEST:
                 msg = cont.request.SerializeToString()
             else:
                 msg = cont.response.SerializeToString()
-            self.connstream.write(encodeVarint(len(msg)) + msg)
+            self.connstream.write(self.encodeVarint(len(msg)) + msg)
             self.connstream.read_bytes(1, callback=self.readResponseHeader)
             pass
         else:
