@@ -21,6 +21,7 @@
 				</form>
 			</div>
 			<video id="rtcvidstream" class="hide" autoplay></video>
+			<canvas id="touchcanvas" class="hide"></canvas>
 		</div>
 		<script src="/static/js/dependencies/Long.min.js"></script>
 		<script src="/static/js/dependencies/ByteBufferAB.min.js"></script>
@@ -36,8 +37,7 @@
 				window.browser = 1; //firefox
 			}
 			else {
-				window.browser = -1; //not supported
-				$('#loginbox').innerHTML = "<h1>This browser is not supported</h1>";
+				document.getElementById("loginbox").innerHTML = "<h1 class=\"unsupported\">This browser is not supported</h1>";
 				throw { name: 'FatalError', message: 'Unsupported browser' };
 			}
 			var ws = new WebSocket("ws://{{ host }}:{{ port }}/ws");
@@ -104,6 +104,24 @@
 					ws.send(window.authpacket.encode().toArrayBuffer());
 				}
 			});
+
+			//Render WebRTC video onto canvas rather than directly in <video> element so we can get touch events
+			var canvas	= document.getElementById("touchcanvas");
+			var ctx		= canvas.getContext('2d');
+			var vid		= document.getElementById("rtcvidstream");
+
+			vid.addEventListener('play', function() {
+				this_ = this;
+				setTimeout(function drawloop() {
+					ctx.drawImage(this_, 0, 0);
+					setTimeout(drawloop, 1000 / 60);
+				}, 0);
+			}, 0);
+
+			//Capture touch events
+			canvas.addEventListener("touchstart", function(ev) { handleTouchStart(ev, ws, svmp) }, false);
+			canvas.addEventListener("touchend", function(ev) { handleTouchEnd(ev, ws, svmp) }, false);
+			canvas.addEventListener("touchmove", function(ev) { handleTouchMove(ev, ws, svmp) }, false);
 		</script>
 	</body>
 </html>

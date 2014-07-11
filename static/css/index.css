@@ -13,3 +13,7 @@ body {
 .hide {
 	display: none;
 }
+.unsupported {
+	color: red;
+	border-color: red;
+}

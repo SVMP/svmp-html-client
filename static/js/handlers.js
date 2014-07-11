@@ -6,6 +6,7 @@ function maybePlay() {
 		document.getElementById("rtcvidstream").play();
 	}
 }
+
 function handleResponse(resp, socket, pbuf) {
 	switch(resp.type) {
 		case 0: //ERROR
@@ -30,12 +31,19 @@ function handleResponse(resp, socket, pbuf) {
 		case 2: //VMREADY
 			// VM is ready.
 			console.log("Received VMREADY: " + resp.message);
-			vparams = new pbuf.Request({"type" : 1}); //Send VIDEO_PARAMS
-			paramcont = new pbuf.Container({"ctype" : 2, "request" : vparams});
+			paramcont = new pbuf.Container({"ctype" : 2, "request" : new pbuf.Request({"type" : 1})}); // Send VIDEO_PARAMS
 			socket.send(paramcont.encode().toArrayBuffer());
+			sinfo = new pbuf.Container({"ctype" : 2, "request" : new pbuf.Request({"type" : 6})}); // Send SCREENINFO
+			socket.send(sinfo.encode().toArrayBuffer());
 			break;
 		case 3: //SCREENINFO
 			console.log("Received SCREENINFO: " + resp.screenInfo.x + ", " + resp.screenInfo.y);
+			var vid = document.getElementById("rtcvidstream");
+			vid.setAttribute("width", resp.screenInfo.x);
+			vid.setAttribute("height", resp.screenInfo.y);
+			var canv = document.getElementById("touchcanvas");
+			canv.setAttribute("width", resp.screenInfo.x);
+			canv.setAttribute("height", resp.screenInfo.y);
 			break;
 		case 4: //VIDSTREAMINFO
 			console.log("Received VIDSTREAMINFO:\niceServers: " + resp.videoInfo.iceServers + "\npcConstraints: " + resp.videoInfo.pcConstraints + "\nvideoConstraints: " + resp.videoInfo.videoConstraints);
@@ -60,7 +68,7 @@ function handleResponse(resp, socket, pbuf) {
 					}
 					setTimeout(500, maybePlay);
 					document.getElementById("loginbox").setAttribute("class", "hide");
-					document.getElementById("rtcvidstream").setAttribute("class", "");
+					document.getElementById("touchcanvas").setAttribute("class", "");
 				},
 				onOfferSDP		: function(sdp) {
 					tmpreq = new pbuf.Request({"type" : 9}); //WEBRTC
@@ -128,4 +136,33 @@ function handleResponse(resp, socket, pbuf) {
 			console.log("Received APPS");
 			break;
 	}
+}
+
+function handleTouch(ev, socket, pbuf, touchtype) {
+	ev.preventDefault();
+	var touches = ev.changedTouches;
+	var touchmsg = new pbuf.TouchEvent({"action" : touchtype});
+	var touchmsgs = new Array();
+	var canvas = document.getElementById("touchcanvas");
+	var offsetX = canvas.offsetLeft;
+	var offsetY = canvas.offsetTop;
+	for(var i = 0; i < touches.length; i++) {
+		var msg = new pbuf.TouchEvent.PointerCoords({"id" : touches[i].identifier, "x" : touches[i].pageX - offsetX, "y" : touches[i].pageY - offsetY});
+		touchmsgs.push(msg);
+	}
+	touchmsg.items = touchmsgs;
+	var cont = new pbuf.Container({"ctype" : 2, "request" : new pbuf.Request({"type" : 2, "touch" : touchmsg})});
+	socket.send(cont.encode().toArrayBuffer());
+}
+
+function handleTouchStart(ev, socket, pbuf) {
+	handleTouch(ev, socket, pbuf, 0);
+}
+
+function handleTouchEnd(ev, socket, pbuf) {
+	handleTouch(ev, socket, pbuf, 1);
+}
+
+function handleTouchMove(ev, socket, pbuf) {
+	handleTouch(ev, socket, pbuf, 2);
 }
