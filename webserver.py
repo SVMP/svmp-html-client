@@ -26,6 +26,7 @@ class IndexHandler(web.RequestHandler):
 
 
 class SocketPassthrough(websocket.WebSocketHandler):
+    # Encodes a base 128 varint, to be used as a length header for outgoing packets to the SVMP server.
     def encodeVarint(self, value):
         def getByte(val):
             tmpval = ''
@@ -51,14 +52,20 @@ class SocketPassthrough(websocket.WebSocketHandler):
             endbytes.append(tmpvalue)
         return ''.join([chr(i) for i in endbytes])
 
+    # Takes Response messages from the SVMP server and wraps them in Container messages to send to the browser.
     def wrapResponse(self, responsebytes):
         cont = protocols.container_pb2.Container()
         cont.ctype = protocols.container_pb2.Container.RESPONSE
         cont.response.ParseFromString(responsebytes)
         msg = cont.SerializeToString()
         self.write_message(msg, binary=True)
+        # Start reading another Response - we want to send everything to the browser as soon as it gets here.
         self.connstream.read_bytes(1, callback=self.readResponseHeader)
 
+    # Reads a varint length header from an incoming message from the SVMP server.
+    # Reads 1 byte at a time and determines if it's the final byte in the varint;
+    # if not read another byte, otherwise decode the varint and read that number of
+    # bytes, then wrap it and send it to the browser via wrapResponse.
     def readResponseHeader(self, headerByte, readBytes=None):
         headerByte = ord(headerByte)
         readBytes = readBytes or []
@@ -78,6 +85,7 @@ class SocketPassthrough(websocket.WebSocketHandler):
             varint = int(varintstr, 2)
             self.connstream.read_bytes(varint, self.wrapResponse)
 
+    # Called when the websocket is opened.
     def open(self):
         self.set_nodelay(True)
         self.keepalive = ioloop.PeriodicCallback(lambda : self.ping(str(time.time())), 30000)
@@ -85,11 +93,17 @@ class SocketPassthrough(websocket.WebSocketHandler):
         self.connected = False
         print('Client acquired')
 
+    # Called when the websocket is closed.
     def on_close(self):
         self.keepalive.stop()
         self.connstream.close()
         print('Client lost')
 
+    # Called when the websocket receives a message from the browser.
+    # Interpret it as a Container message. If it's a connect directive,
+    # open the socket to the SVMP server, tell the browser we have done so,
+    # and start reading from the socket. If it's a Request message, pass it
+    # to the socket to the SVMP server. Otherwise it's garbage.
     def on_message(self, message):
         cont = protocols.container_pb2.Container()
         cont.ParseFromString(message)

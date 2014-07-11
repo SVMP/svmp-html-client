@@ -6,25 +6,40 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 	</head>
 	<body>
-		<div id="loginbox">
-			<form id="loginform">
-				<label for="proxyhost">Proxy Host:</label>
-				<input type="text" id="proxyhost" name="proxyhost"><br />
-				<label for="proxyport">Proxy Port:</label>
-				<input type="text" id="proxyport" name="proxyport"><br />
-				<label for="username">Username:</label>
-				<input type="text" id="username" name="username"><br />
-				<label for="password">Password:</label>
-				<input type="text" id="password" name="password"><br />
-				<button value="submit">Go!</button>
-			</form>
+		<div id="content">
+			<div id="loginbox">
+				<form id="loginform">
+					<label for="proxyhost">Proxy Host:</label>
+					<input type="text" id="proxyhost" name="proxyhost"><br />
+					<label for="proxyport">Proxy Port:</label>
+					<input type="text" id="proxyport" name="proxyport"><br />
+					<label for="username">Username:</label>
+					<input type="text" id="username" name="username"><br />
+					<label for="password">Password:</label>
+					<input type="text" id="password" name="password"><br />
+					<button value="submit">Go!</button>
+				</form>
+			</div>
+			<video id="rtcvidstream" class="hide" autoplay></video>
 		</div>
 		<script src="/static/js/dependencies/Long.min.js"></script>
 		<script src="/static/js/dependencies/ByteBufferAB.min.js"></script>
 		<script src="/static/js/dependencies/ProtoBuf.min.js"></script>
 		<script src="/static/js/dependencies/jquery-2.1.1.min.js"></script>
+		<script src="/static/js/dependencies/RTCPeerConnection-v1.5.js"></script>
 		<script src="/static/js/handlers.js"></script>
 		<script>
+			if(typeof(webkitRTCPeerConnection) == "function") {
+				window.browser = 0; //chrome/opera
+			}
+			else if(typeof(mozRTCPeerConnection) == "function") {
+				window.browser = 1; //firefox
+			}
+			else {
+				window.browser = -1; //not supported
+				$('#loginbox').innerHTML = "<h1>This browser is not supported</h1>";
+				throw { name: 'FatalError', message: 'Unsupported browser' };
+			}
 			var ws = new WebSocket("ws://{{ host }}:{{ port }}/ws");
 			ws.binaryType = "arraybuffer";
 			var ProtoBuf = dcodeIO.ProtoBuf;
@@ -36,8 +51,6 @@
 			};
 
 			ws.onmessage = function(ev) {
-				//console.log("Message received: " + ev.data);
-				//window.tempdata = ev.data;
 				var contbuilder = builder.build("svmp.Container");
 				var decodedcontainer = contbuilder.decode(ev.data);
 				console.log(decodedcontainer.ctype);
@@ -53,7 +66,7 @@
 						console.log("Erroneous REQUEST packet receieved");
 						break;
 					case 3:
-						handleResponse(decodedcontainer.response);
+						handleResponse(decodedcontainer.response, ws, svmp);
 						break;
 					case 4:
 						console.log("Erroneous READPACKET packet received");
@@ -78,12 +91,18 @@
 				var port = $('#proxyport').val();
 				var username = $('#username').val();
 				var password = $('#password').val();
-				var connpacket = new svmp.Container({"ctype" : 0, "proxyhost" : host, "proxyport": parseInt(port)});
-				ws.send(connpacket.encode().toArrayBuffer());
-				var areq = new svmp.AuthRequest({"type" : 1, "username" : username, "password" : password});
-				var req = new svmp.Request({"type" : 0, "authRequest": areq});
-				window.authpacket = new svmp.Container({"ctype" : 2, "request" : req});
-				//ws.send(window.authpacket.encode().toArrayBuffer());
+				if(!window.connected) {
+					var connpacket = new svmp.Container({"ctype" : 0, "proxyhost" : host, "proxyport": parseInt(port)});
+					ws.send(connpacket.encode().toArrayBuffer());
+				}
+				if(!window.authenticated) {
+					var areq = new svmp.AuthRequest({"type" : 1, "username" : username, "password" : password});
+					var req = new svmp.Request({"type" : 0, "authRequest": areq});
+					window.authpacket = new svmp.Container({"ctype" : 2, "request" : req});
+				}
+				if(window.connected && !window.authenticated) {
+					ws.send(window.authpacket.encode().toArrayBuffer());
+				}
 			});
 		</script>
 	</body>
