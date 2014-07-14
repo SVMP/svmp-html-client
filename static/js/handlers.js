@@ -35,6 +35,7 @@ function handleResponse(resp, socket, pbuf) {
 			socket.send(paramcont.encode().toArrayBuffer());
 			sinfo = new pbuf.Container({"ctype" : 2, "request" : new pbuf.Request({"type" : 6})}); // Send SCREENINFO
 			socket.send(sinfo.encode().toArrayBuffer());
+			window.currtouches = [];
 			break;
 		case 3: //SCREENINFO
 			console.log("Received SCREENINFO: " + resp.screenInfo.x + ", " + resp.screenInfo.y);
@@ -141,28 +142,59 @@ function handleResponse(resp, socket, pbuf) {
 function handleTouch(ev, socket, pbuf, touchtype) {
 	ev.preventDefault();
 	var touches = ev.changedTouches;
-	var touchmsg = new pbuf.TouchEvent({"action" : touchtype});
+	var touchmsg = new pbuf.TouchEvent({});
 	var touchmsgs = new Array();
 	var canvas = document.getElementById("touchcanvas");
 	var offsetX = canvas.offsetLeft;
 	var offsetY = canvas.offsetTop;
-	for(var i = 0; i < touches.length; i++) {
-		var msg = new pbuf.TouchEvent.PointerCoords({"id" : touches[i].identifier, "x" : touches[i].pageX - offsetX, "y" : touches[i].pageY - offsetY});
+	for(var i = 0; i < window.currtouches.length; i++) {
+		var msg = new pbuf.TouchEvent.PointerCoords({"id" : window.currtouches[i].identifier, "x" : window.currtouches[i].pageX - offsetX, "y" : window.currtouches[i].pageY - offsetY});
 		touchmsgs.push(msg);
 	}
-	touchmsg.items = touchmsgs;
-	var cont = new pbuf.Container({"ctype" : 2, "request" : new pbuf.Request({"type" : 2, "touch" : touchmsg})});
-	socket.send(cont.encode().toArrayBuffer());
+	if(touchtype != 2) {
+		for(var i = 0; i < window.currtouches.length; i++) {
+			touchmsg.items = touchmsgs;
+			touchmsg.action = ((window.currtouches[i].identifier > 0 ? touchtype + 5 : touchtype) | (window.currtouches[i].identifier << 8));
+			var cont = new pbuf.Container({"ctype" : 2, "request" : new pbuf.Request({"type" : 2, "touch" : touchmsg})});
+			socket.send(cont.encode().toArrayBuffer());
+		}
+	}
+	else {
+		touchmsg.items = touchmsgs;
+		touchmsg.action = touchtype;
+		var cont = new pbuf.Container({"ctype" : 2, "request" : new pbuf.Request({"type" : 2, "touch" : touchmsg})});
+		socket.send(cont.encode().toArrayBuffer());
+	}
+}
+
+function copyTouch(touch) {
+	return { identifier : touch.identifier, pageX : touch.pageX, pageY : touch.pageY };
+}
+
+function findTouch(id) {
+	for(var i = 0; i < window.currtouches.length; i++) {
+		if(id == window.currtouches[i].identifier) return i;
+	}
+	return -1;
 }
 
 function handleTouchStart(ev, socket, pbuf) {
+	for(var i = 0; i < ev.changedTouches.length; i++) {
+		window.currtouches.push(copyTouch(ev.changedTouches[i]));
+	}
 	handleTouch(ev, socket, pbuf, 0);
 }
 
 function handleTouchEnd(ev, socket, pbuf) {
 	handleTouch(ev, socket, pbuf, 1);
+	for(var i = 0; i < ev.changedTouches.length; i++) {
+		window.currtouches.splice(findTouch(ev.changedTouches[i].identifier), 1);
+	}
 }
 
 function handleTouchMove(ev, socket, pbuf) {
+	for(var i = 0; i < ev.changedTouches.length; i++) {
+		window.currtouches.splice(findTouch(ev.changedTouches[i].identifier), 1, copyTouch(ev.changedTouches[i]));
+	}
 	handleTouch(ev, socket, pbuf, 2);
 }
