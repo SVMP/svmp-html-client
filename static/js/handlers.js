@@ -7,6 +7,15 @@ function maybePlay() {
 	}
 }
 
+function setPlayerDimensions(w, h) {
+	var vid = document.getElementById("rtcvidstream");
+	vid.setAttribute("width", w);
+	vid.setAttribute("height", h);
+	var canv = document.getElementById("touchcanvas");
+	canv.setAttribute("width", w);
+	canv.setAttribute("height", h);
+}
+
 function handleResponse(resp, socket, pbuf) {
 	switch(resp.type) {
 		case 0: //ERROR
@@ -39,12 +48,10 @@ function handleResponse(resp, socket, pbuf) {
 			break;
 		case 3: //SCREENINFO
 			console.log("Received SCREENINFO: " + resp.screenInfo.x + ", " + resp.screenInfo.y);
-			var vid = document.getElementById("rtcvidstream");
-			vid.setAttribute("width", resp.screenInfo.x);
-			vid.setAttribute("height", resp.screenInfo.y);
-			var canv = document.getElementById("touchcanvas");
-			canv.setAttribute("width", resp.screenInfo.x);
-			canv.setAttribute("height", resp.screenInfo.y);
+			window.screenX = resp.screenInfo.x;
+			window.screenY = resp.screenInfo.y;
+			setPlayerDimensions(window.screenX, window.screenY);
+			window.rotation = 0;
 			break;
 		case 4: //VIDSTREAMINFO
 			console.log("Received VIDSTREAMINFO:\niceServers: " + resp.videoInfo.iceServers + "\npcConstraints: " + resp.videoInfo.pcConstraints + "\nvideoConstraints: " + resp.videoInfo.videoConstraints);
@@ -197,4 +204,26 @@ function handleTouchMove(ev, socket, pbuf) {
 		window.currtouches.splice(findTouch(ev.changedTouches[i].identifier), 1, copyTouch(ev.changedTouches[i]));
 	}
 	handleTouch(ev, socket, pbuf, 2);
+}
+
+function handleRotation(ev, socket, pbuf) {
+	var beta = ev.beta;
+	var gamma = ev.gamma;
+	var diff = Math.abs(beta) - Math.abs(gamma);
+	if(diff < 0) { // |Gamma| > |Beta|
+		if(Math.abs(gamma) > 45) {
+			window.rotation = 2 + Math.round(gamma / Math.abs(gamma));
+			//setPlayerDimensions(window.screenY, window.screenX);
+		}
+		else {
+			window.rotation = 0;
+			//setPlayerDimensions(window.screenX, window.screenY);
+		}
+	}
+	else {
+		window.rotation = 0;
+		//setPlayerDimensions(window.screenX, window.screenY);
+	}
+	var cont = new pbuf.Container({"ctype" : 2, "request" : new pbuf.Request({"type" : 10, "rotationInfo" : new pbuf.RotationInfo({"rotation" : window.rotation})})});
+	socket.send(cont.encode().toArrayBuffer());
 }
