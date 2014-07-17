@@ -48,9 +48,11 @@ function handleResponse(resp, socket, pbuf) {
 			break;
 		case 3: //SCREENINFO
 			console.log("Received SCREENINFO: " + resp.screenInfo.x + ", " + resp.screenInfo.y);
-			window.screenX = resp.screenInfo.x;
-			window.screenY = resp.screenInfo.y;
-			setPlayerDimensions(window.screenX, window.screenY);
+			window.screeninfoX = resp.screenInfo.x;
+			window.screeninfoY = resp.screenInfo.y;
+			window.xsf = window.screeninfoX / document.documentElement.clientWidth;
+			window.ysf = window.screeninfoY / document.documentElement.clientHeight;
+			setPlayerDimensions(window.screeninfoX, window.screeninfoY);
 			window.rotation = 0;
 			break;
 		case 4: //VIDSTREAMINFO
@@ -77,6 +79,7 @@ function handleResponse(resp, socket, pbuf) {
 					setTimeout(500, maybePlay);
 					document.getElementById("loginbox").setAttribute("class", "hide");
 					document.getElementById("touchcanvas").setAttribute("class", "");
+					window.addEventListener("deviceorientation", function(ev) { handleRotation(ev, socket, pbuf); });
 				},
 				onOfferSDP		: function(sdp) {
 					tmpreq = new pbuf.Request({"type" : 9}); //WEBRTC
@@ -148,14 +151,11 @@ function handleResponse(resp, socket, pbuf) {
 
 function handleTouch(ev, socket, pbuf, touchtype) {
 	ev.preventDefault();
-	var touches = ev.changedTouches;
 	var touchmsg = new pbuf.TouchEvent({});
 	var touchmsgs = new Array();
 	var canvas = document.getElementById("touchcanvas");
-	var offsetX = canvas.offsetLeft;
-	var offsetY = canvas.offsetTop;
 	for(var i = 0; i < window.currtouches.length; i++) {
-		var msg = new pbuf.TouchEvent.PointerCoords({"id" : window.currtouches[i].identifier, "x" : window.currtouches[i].pageX - offsetX, "y" : window.currtouches[i].pageY - offsetY});
+		var msg = new pbuf.TouchEvent.PointerCoords({"id" : window.currtouches[i].identifier, "x" : window.currtouches[i].pageX * window.xsf, "y" : window.currtouches[i].pageY * window.ysf});
 		touchmsgs.push(msg);
 	}
 	if(touchtype != 2) {
@@ -192,11 +192,21 @@ function handleTouchStart(ev, socket, pbuf) {
 	handleTouch(ev, socket, pbuf, 0);
 }
 
+function handleMouseStart(ev, socket, pbuf) {
+	window.currtouches.push({ identifier : 0, pageX : ev.pageX, pageY : ev.pageY });
+	handleTouch(ev, socket, pbuf, 0)
+}
+
 function handleTouchEnd(ev, socket, pbuf) {
 	handleTouch(ev, socket, pbuf, 1);
 	for(var i = 0; i < ev.changedTouches.length; i++) {
 		window.currtouches.splice(findTouch(ev.changedTouches[i].identifier), 1);
 	}
+}
+
+function handleMouseEnd(ev, socket, pbuf) {
+	handleTouch(ev, socket, pbuf, 1);
+	window.currtouches.splice(findTouch(0), 1);
 }
 
 function handleTouchMove(ev, socket, pbuf) {
@@ -206,23 +216,43 @@ function handleTouchMove(ev, socket, pbuf) {
 	handleTouch(ev, socket, pbuf, 2);
 }
 
+function handleMouseMove(ev, socket, pbuf) {
+	window.currtouches.splice(findTouch(0), 1, { identifier : 1, pageX : ev.pageX, pageY : ev.pageY });
+	handleTouch(ev, socket, pbuf, 2);
+}
+
 function handleRotation(ev, socket, pbuf) {
 	var beta = ev.beta;
 	var gamma = ev.gamma;
 	var diff = Math.abs(beta) - Math.abs(gamma);
 	if(diff < 0) { // |Gamma| > |Beta|
 		if(Math.abs(gamma) > 45) {
-			window.rotation = 2 + Math.round(gamma / Math.abs(gamma));
-			//setPlayerDimensions(window.screenY, window.screenX);
+			if(window.rotation % 2 == 0) {
+				window.rotation = 2 + Math.round(gamma / Math.abs(gamma));
+				//setPlayerDimensions(window.screenY, window.screenX);
+				window.canvasctx.save();
+				window.canvasctx.rotate((window.rotation - 2) * 90 * Math.PI / 180);
+				window.canvasctx.restore();
+			}
 		}
 		else {
-			window.rotation = 0;
-			//setPlayerDimensions(window.screenX, window.screenY);
+			if(window.rotation != 0) {
+				//setPlayerDimensions(window.screenX, window.screenY);
+				window.canvasctx.save();
+				window.canvasctx.rotate((window.rotation - 2) * -90 * Math.PI / 180);
+				window.canvasctx.restore();
+				window.rotation = 0;
+			}
 		}
 	}
 	else {
-		window.rotation = 0;
-		//setPlayerDimensions(window.screenX, window.screenY);
+		if(window.rotation != 0) {
+			//setPlayerDimensions(window.screenX, window.screenY);
+			window.canvasctx.save();
+			window.canvasctx.rotate((window.rotation - 2) * -90 * Math.PI / 180);
+			window.canvasctx.restore();
+			window.rotation = 0;
+		}
 	}
 	var cont = new pbuf.Container({"ctype" : 2, "request" : new pbuf.Request({"type" : 10, "rotationInfo" : new pbuf.RotationInfo({"rotation" : window.rotation})})});
 	socket.send(cont.encode().toArrayBuffer());

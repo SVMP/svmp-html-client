@@ -106,14 +106,14 @@
 			});
 
 			//Render WebRTC video onto canvas rather than directly in <video> element so we can get touch events
-			var canvas	= document.getElementById("touchcanvas");
-			var ctx		= canvas.getContext('2d');
-			var vid		= document.getElementById("rtcvidstream");
+			var canvas			= document.getElementById("touchcanvas");
+			window.canvasctx	= canvas.getContext('2d');
+			var vid				= document.getElementById("rtcvidstream");
 
 			vid.addEventListener('play', function() {
 				this_ = this;
 				setTimeout(function drawloop() {
-					ctx.drawImage(this_, 0, 0);
+					window.canvasctx.drawImage(this_, 0, 0);
 					setTimeout(drawloop, 1000 / 60);
 				}, 0);
 			}, 0);
@@ -122,6 +122,10 @@
 			canvas.addEventListener("touchstart", function(ev) { handleTouchStart(ev, ws, svmp) }, false);
 			canvas.addEventListener("touchend", function(ev) { handleTouchEnd(ev, ws, svmp) }, false);
 			canvas.addEventListener("touchmove", function(ev) { handleTouchMove(ev, ws, svmp) }, false);
+			//Capture mouse events
+			canvas.addEventListener("mousedown", function(ev) { handleMouseStart(ev, ws, svmp) }, false);
+			canvas.addEventListener("mouseup", function(ev) { handleMouseEnd(ev, ws, svmp) }, false);
+			canvas.addEventListener("mousemove", function(ev) { handleMouseMove(ev, ws, svmp) }, false);
 		</script>
 	</body>
 </html>

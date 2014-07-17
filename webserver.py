@@ -91,12 +91,15 @@ class SocketPassthrough(websocket.WebSocketHandler):
         self.keepalive = ioloop.PeriodicCallback(lambda : self.ping(str(time.time())), 30000)
         self.keepalive.start()
         self.connected = False
+        self.connstream = None
         print('Client acquired')
 
     # Called when the websocket is closed.
     def on_close(self):
-        self.keepalive.stop()
-        self.connstream.close()
+        if self.keepalive:
+            self.keepalive.stop()
+        if self.connstream is not None:
+            self.connstream.close()
         print('Client lost')
 
     # Called when the websocket receives a message from the browser.
