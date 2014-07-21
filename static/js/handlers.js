@@ -16,6 +16,37 @@ function setPlayerDimensions(w, h) {
 	canv.setAttribute("height", h);
 }
 
+function updateLocation(pbuf, provider) {
+	navigator.geolocation.getCurrentPosition(function(pos) {
+		var locUpdate = new pbuf.LocationUpdate({
+			"latitude" : pos.coords.latitude,
+			"longitude" : pos.coords.longitude,
+			"time" : pos.timestamp,
+			"provider" : provider,
+			"accuracy" : pos.coords.accuracy,
+			"altitude" : pos.coords.altitude,
+			"bearing" : pos.coords.heading,
+			"speed" : pos.coords.speed
+		});
+		var locUpdateRequest = new pbuf.Request({"type" : 4, "locationRequest" : new pbuf.LocationRequest({"type" : 4, "update" : locUpdate})});
+		var locUpdateContainer = new pbuf.Container({"type" : 2, "request" : locUpdateRequest});
+		window.socket.send(locUpdateContainer.encode().toArrayBuffer());
+	},
+	function(err) {
+		return;
+	},
+	{
+		enableHighAccuracy: (provider == "GPS_PROVIDER"),
+		timeout: 1000,
+		maximumAge: 0
+	});
+}
+
+function repeatUpdateLocation(pbuf, provider, timeout) {
+	updateLocation(pbuf, provider);
+	window.setTimeout(repeatUpdateLocation, timeout, pbuf, provider, timeout);
+}
+
 function handleResponse(resp, socket, pbuf) {
 	switch(resp.type) {
 		case 0: //ERROR
@@ -44,6 +75,22 @@ function handleResponse(resp, socket, pbuf) {
 			socket.send(paramcont.encode().toArrayBuffer());
 			sinfo = new pbuf.Container({"ctype" : 2, "request" : new pbuf.Request({"type" : 6})}); // Send SCREENINFO
 			socket.send(sinfo.encode().toArrayBuffer());
+			providerinfo = new pbuf.LocationProviderInfo({"provider" : "GPS_PROVIDER",
+														  "requiresNetwork" : true,
+														  "requiresSatellite" : true,
+														  "requiresCell" : true,
+														  "hasMonetaryCost" : false,
+														  "supportsAltitude" : true,
+														  "supportsSpeed" : true,
+														  "supportsBearing" : true,
+														  "powerRequirement" : 1,
+														  "accuracy" : 1
+														 });
+			locReq = new pbuf.LocationRequest({"type" : 1, "providerInfo" : providerinfo});
+			locReqCont = new pbuf.Container({"ctype" : 2, "request" : new pbuf.Request({"type" : 4, "locationRequest" : locReq})});
+			socket.send(locReqCont.encode().toArrayBuffer());
+			providerinfo.provider = "NETWORK_PROVIDER";
+			socket.send(locReqCont.encode().toArrayBuffer());
 			window.currtouches = [];
 			break;
 		case 3: //SCREENINFO
@@ -92,17 +139,40 @@ function handleResponse(resp, socket, pbuf) {
 			break;
 		case 5: //INTENT
 			console.log("Received INTENT:\naction: " + resp.intent.action + "\ndata: " + resp.intent.data);
+			switch(resp.intent.action) {
+				case 1: //ACTION_VIEW
+					console.log("Somehow got an ACTION_VIEW");
+					break;
+				case 2: //ACTION_DIAL
+					window.open(resp.intent.data, "_blank");
+					break;
+			}
 			break;
 		case 6: //NOTIFICATION
 			console.log("Received NOTIFICATION");
+			alert(resp.notification.contentTitle + "\n" + resp.notification.contentText);
 			break;
 		case 7: //LOCATION
 			switch(resp.locationResponse.type) {
 				case 1:
-					// Do subscription
+					switch(resp.locationResponse.subscribe.type) {
+						case 1: //SINGLE_UPDATE
+							updateLocation(resp.locationResponse.subscribe.provider);
+						case 2: //MULTIPLE_UPDATES
+							if(typeof(resp.locationResponse.subscribe.minDistance) == "undefined") {
+								window.locationUpdateID = window.setTimeout(repeatUpdateLocation, resp.locationResponse.subscribe.minTime, pbuf, resp.locationResponse.subscribe.provider, resp.locationResponse.subscribe.minTime);
+							}
+							else {
+								updateLocation(pbuf, resp.locationResponse.subscribe.provider);
+							}
+					}
 					break;
 				case 2:
 					// Do unsubscription
+					if(window.locationUpdateID != null) {
+						window.clearTimeout(window.locationUpdateID);
+						window.locationUpdateID = null;
+					}
 					break;
 			}
 			console.log("Received LOCATION");

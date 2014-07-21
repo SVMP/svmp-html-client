@@ -84,6 +84,8 @@
 			ws.onerror = function(ev) {
 				console.log("socket error: " + ev.data);
 			};
+
+			window.socket = ws;
 	
 			$('#loginform').submit(function(event) {
 				event.preventDefault();
@@ -113,7 +115,17 @@
 			vid.addEventListener('play', function() {
 				this_ = this;
 				setTimeout(function drawloop() {
-					window.canvasctx.drawImage(this_, 0, 0);
+					try {
+						window.canvasctx.drawImage(this_, 0, 0);
+					}
+					catch(ex) {
+						if(ex.name == "NS_ERROR_NOT_AVAILABLE") {
+							setTimeout(drawloop, 0);
+						}
+						else {
+							throw ex;
+						}
+					}
 					setTimeout(drawloop, 1000 / 60);
 				}, 0);
 			}, 0);
