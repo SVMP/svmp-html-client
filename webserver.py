@@ -12,10 +12,12 @@ def main():
     config.read('config.cfg')
     apphost = config.get('core', 'host')
     appport = config.getint('core', 'port')
+    settings = { "static_path" : "static" }
     app = web.Application([(r'/ws', SocketPassthrough),
                            (r'/static/(.*)', web.StaticFileHandler, {"path":
-                               "./static"}),
-                           (r'/(index\.html)?', IndexHandler)])
+                               "static"}),
+                           (r'/(index\.html)?', IndexHandler),
+                           (r'/(favicon\.ico)', web.StaticFileHandler, {'path': './static/favicon.ico'})], **settings)
     app.listen(appport)
     ioloop.IOLoop.instance().start()
 
