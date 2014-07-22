@@ -97,8 +97,10 @@ function handleResponse(resp, socket, pbuf) {
 			console.log("Received SCREENINFO: " + resp.screenInfo.x + ", " + resp.screenInfo.y);
 			window.screeninfoX = resp.screenInfo.x;
 			window.screeninfoY = resp.screenInfo.y;
-			window.xsf = window.screeninfoX / document.documentElement.clientWidth;
-			window.ysf = window.screeninfoY / document.documentElement.clientHeight;
+			setTimeout(function() {
+				window.xsf = window.screeninfoX / document.documentElement.clientWidth;
+				window.ysf = window.screeninfoY / document.documentElement.clientHeight;
+			}, 500);
 			setPlayerDimensions(window.screeninfoX, window.screeninfoY);
 			window.rotation = 0;
 			break;
@@ -221,11 +223,22 @@ function handleResponse(resp, socket, pbuf) {
 
 function handleTouch(ev, socket, pbuf, touchtype) {
 	ev.preventDefault();
+	//console.log(window.currtouches);
 	var touchmsg = new pbuf.TouchEvent({});
 	var touchmsgs = new Array();
 	var canvas = document.getElementById("touchcanvas");
 	for(var i = 0; i < window.currtouches.length; i++) {
-		var msg = new pbuf.TouchEvent.PointerCoords({"id" : window.currtouches[i].identifier, "x" : window.currtouches[i].pageX * window.xsf, "y" : window.currtouches[i].pageY * window.ysf});
+		var scaledX = 0;
+		var scaledY = 0;
+		if(window.isMobile) {
+			scaledX = window.currtouches[i].pageX * window.xsf;
+			scaledY = window.currtouches[i].pageY * window.ysf;
+		}
+		else {
+			scaledX = window.currtouches[i].pageX - canvas.offsetLeft;
+			scaledY = window.currtouches[i].pageY - canvas.offsetTop;
+		}
+		var msg = new pbuf.TouchEvent.PointerCoords({"id" : window.currtouches[i].identifier, "x" : scaledX, "y" : scaledY});
 		touchmsgs.push(msg);
 	}
 	if(touchtype != 2) {
@@ -276,7 +289,7 @@ function handleTouchEnd(ev, socket, pbuf) {
 
 function handleMouseEnd(ev, socket, pbuf) {
 	handleTouch(ev, socket, pbuf, 1);
-	window.currtouches.splice(findTouch(0), 1);
+	window.currtouches = Array();
 }
 
 function handleTouchMove(ev, socket, pbuf) {
@@ -287,8 +300,10 @@ function handleTouchMove(ev, socket, pbuf) {
 }
 
 function handleMouseMove(ev, socket, pbuf) {
-	window.currtouches.splice(findTouch(0), 1, { identifier : 1, pageX : ev.pageX, pageY : ev.pageY });
-	handleTouch(ev, socket, pbuf, 2);
+	if(window.currtouches.length != 0) {
+		window.currtouches.splice(findTouch(0), 1, { identifier : 0, pageX : ev.pageX, pageY : ev.pageY });
+		handleTouch(ev, socket, pbuf, 2);
+	}
 }
 
 function handleRotation(ev, socket, pbuf) {

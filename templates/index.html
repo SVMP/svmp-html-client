@@ -40,6 +40,7 @@
 				document.getElementById("loginbox").innerHTML = "<h1 class=\"unsupported\">This browser is not supported</h1>";
 				throw { name: 'FatalError', message: 'Unsupported browser' };
 			}
+			window.isMobile = ($("#touchcanvas").css("position") == "absolute");
 			var ws = new WebSocket("ws://{{ host }}:{{ port }}/ws");
 			ws.binaryType = "arraybuffer";
 			var ProtoBuf = dcodeIO.ProtoBuf;
