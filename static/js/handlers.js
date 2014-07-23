@@ -28,8 +28,8 @@ function updateLocation(pbuf, provider) {
 			"bearing" : pos.coords.heading,
 			"speed" : pos.coords.speed
 		});
-		var locUpdateRequest = new pbuf.Request({"type" : 4, "locationRequest" : new pbuf.LocationRequest({"type" : 4, "update" : locUpdate})});
-		var locUpdateContainer = new pbuf.Container({"type" : 2, "request" : locUpdateRequest});
+		var locUpdateRequest = new pbuf.Request({"type" : pbuf.Request.RequestType.LOCATION, "locationRequest" : new pbuf.LocationRequest({"type" : pbuf.LocationRequest.LocationRequestType.LOCATIONUPDATE, "update" : locUpdate})});
+		var locUpdateContainer = new pbuf.Container({"type" : pbuf.Container.ContainerType.REQUEST, "request" : locUpdateRequest});
 		window.socket.send(locUpdateContainer.encode().toArrayBuffer());
 	},
 	function(err) {
@@ -49,31 +49,31 @@ function repeatUpdateLocation(pbuf, provider, timeout) {
 
 function handleResponse(resp, socket, pbuf) {
 	switch(resp.type) {
-		case 0: //ERROR
+		case pbuf.Response.ResponseType.ERROR:
 			console.log("Error-type response; message: " + resp.message);
 			break;
-		case 1: //AUTH
+		case pbuf.Response.ResponseType.AUTH:
 			switch(resp.authResponse.type) {
-				case 0: //AUTH_OK
+				case pbuf.AuthResponse.AuthResponseType.AUTH_OK: //AUTH_OK
 					window.authenticated = true;
 					break;
-				case 1: //AUTH_FAIL
+				case pbuf.AuthResponse.AuthResponseType.AUTH_FAIL: //AUTH_FAIL
 					alert("Auth failed!");
 					break;
-				case 2: //SESSION_MAX_TIMEOUT
-				case 3: //SESSION_IDLE_TIMEOUT
-				case 4: //NEED_PASSWORD_CHANGE
-				case 5: //PASSWORD_CHANGE_FAIL
+				case pbuf.AuthResponse.AuthResponseType.SESSION_MAX_TIMEOUT: //SESSION_MAX_TIMEOUT
+				case pbuf.AuthResponse.AuthResponseType.SESSION_IDLE_TIMEOUT: //SESSION_IDLE_TIMEOUT
+				case pbuf.AuthResponse.AuthResponseType.NEED_PASSWORD_CHANGE: //NEED_PASSWORD_CHANGE
+				case pbuf.AuthResponse.AuthResponseType.PASSWORD_CHANGE_FAIL: //PASSWORD_CHANGE_FAIL
 					console.log("Got an unhandled authResponse type");
 					break;
 			}
 			break;
-		case 2: //VMREADY
+		case pbuf.Response.ResponseType.VMREADY:
 			// VM is ready.
 			console.log("Received VMREADY: " + resp.message);
-			paramcont = new pbuf.Container({"ctype" : 2, "request" : new pbuf.Request({"type" : 1})}); // Send VIDEO_PARAMS
+			paramcont = new pbuf.Container({"ctype" : pbuf.Container.ContainerType.REQUEST, "request" : new pbuf.Request({"type" : pbuf.Request.RequestType.VIDEO_PARAMS})}); // Send VIDEO_PARAMS
 			socket.send(paramcont.encode().toArrayBuffer());
-			sinfo = new pbuf.Container({"ctype" : 2, "request" : new pbuf.Request({"type" : 6})}); // Send SCREENINFO
+			sinfo = new pbuf.Container({"ctype" : pbuf.Container.ContainerType.REQUEST, "request" : new pbuf.Request({"type" : pbuf.Request.RequestType.SCREENINFO})}); // Send SCREENINFO
 			socket.send(sinfo.encode().toArrayBuffer());
 			providerinfo = new pbuf.LocationProviderInfo({"provider" : "GPS_PROVIDER",
 														  "requiresNetwork" : true,
@@ -86,14 +86,14 @@ function handleResponse(resp, socket, pbuf) {
 														  "powerRequirement" : 1,
 														  "accuracy" : 1
 														 });
-			locReq = new pbuf.LocationRequest({"type" : 1, "providerInfo" : providerinfo});
-			locReqCont = new pbuf.Container({"ctype" : 2, "request" : new pbuf.Request({"type" : 4, "locationRequest" : locReq})});
+			locReq = new pbuf.LocationRequest({"type" : pbuf.LocationRequest.LocationRequestType.PROVIDERINFO, "providerInfo" : providerinfo});
+			locReqCont = new pbuf.Container({"ctype" : pbuf.Container.ContainerType.REQUEST, "request" : new pbuf.Request({"type" : pbuf.Request.RequestType.LOCATION, "locationRequest" : locReq})});
 			socket.send(locReqCont.encode().toArrayBuffer());
 			providerinfo.provider = "NETWORK_PROVIDER";
 			socket.send(locReqCont.encode().toArrayBuffer());
 			window.currtouches = [];
 			break;
-		case 3: //SCREENINFO
+		case pbuf.Response.ResponseType.SCREENINFO:
 			console.log("Received SCREENINFO: " + resp.screenInfo.x + ", " + resp.screenInfo.y);
 			window.screeninfoX = resp.screenInfo.x;
 			window.screeninfoY = resp.screenInfo.y;
@@ -104,18 +104,18 @@ function handleResponse(resp, socket, pbuf) {
 			setPlayerDimensions(window.screeninfoX, window.screeninfoY);
 			window.rotation = 0;
 			break;
-		case 4: //VIDSTREAMINFO
+		case pbuf.Response.ResponseType.VIDSTREAMINFO:
 			console.log("Received VIDSTREAMINFO:\niceServers: " + resp.videoInfo.iceServers + "\npcConstraints: " + resp.videoInfo.pcConstraints + "\nvideoConstraints: " + resp.videoInfo.videoConstraints);
 			// Do something with iceServers
-			rtcmsgreq = new pbuf.Request({"type" : 9}); //WEBRTC
-			rtcmsg = new pbuf.WebRTCMessage({"type" : 1}); //OFFER
+			rtcmsgreq = new pbuf.Request({"type" : pbuf.Request.RequestType.WEBRTC}); //WEBRTC
+			rtcmsg = new pbuf.WebRTCMessage({"type" : pbuf.WebRTCMessage.WebRTCType.OFFER}); //OFFER
 			window.rtcpeer = RTCPeerConnection({
 				attachStream 	: null,
 				onICE			: function(candidate) {
-					tmpreq = new pbuf.Request({"type" : 9}); //WEBRTC
-					tmprtc = new pbuf.WebRTCMessage({"type" : 3, "json" : JSON.stringify(candidate)}); //CANDIDATE
+					tmpreq = new pbuf.Request({"type" : pbuf.Request.RequestType.WEBRTC}); //WEBRTC
+					tmprtc = new pbuf.WebRTCMessage({"type" : pbuf.WebRTCMessage.WebRTCType.CANDIDATE, "json" : JSON.stringify(candidate)}); //CANDIDATE
 					tmpreq.webrtcMsg = tmprtc
-					rtccont = new pbuf.Container({"ctype" : 2, "request" : tmpreq});
+					rtccont = new pbuf.Container({"ctype" : pbuf.Container.ContainerType.REQUEST, "request" : tmpreq});
 					socket.send(rtccont.encode().toArrayBuffer());
 				},
 				onRemoteStream	: function(stream) {
@@ -131,32 +131,32 @@ function handleResponse(resp, socket, pbuf) {
 					window.addEventListener("deviceorientation", function(ev) { handleRotation(ev, socket, pbuf); });
 				},
 				onOfferSDP		: function(sdp) {
-					tmpreq = new pbuf.Request({"type" : 9}); //WEBRTC
-					tmprtc = new pbuf.WebRTCMessage({"type" : 1, "json" : JSON.stringify(sdp)}); //OFFER
+					tmpreq = new pbuf.Request({"type" : pbuf.Request.RequestType.WEBRTC}); //WEBRTC
+					tmprtc = new pbuf.WebRTCMessage({"type" : pbuf.WebRTCMessage.WebRTCType.OFFER, "json" : JSON.stringify(sdp)}); //OFFER
 					tmpreq.webrtcMsg = tmprtc;
-					rtccont = new pbuf.Container({"ctype" : 2, "request" : tmpreq});
+					rtccont = new pbuf.Container({"ctype" : pbuf.Container.ContainerType.REQUEST, "request" : tmpreq});
 					socket.send(rtccont.encode().toArrayBuffer());
 				}
 			});
 			break;
-		case 5: //INTENT
+		case pbuf.Response.ResponseType.INTENT:
 			console.log("Received INTENT:\naction: " + resp.intent.action + "\ndata: " + resp.intent.data);
 			switch(resp.intent.action) {
-				case 1: //ACTION_VIEW
+				case pbuf.IntentAction.ACTION_VIEW: //ACTION_VIEW
 					console.log("Somehow got an ACTION_VIEW");
 					break;
-				case 2: //ACTION_DIAL
+				case pbuf.IntentAction.ACTION_DIAL: //ACTION_DIAL
 					window.open(resp.intent.data, "_blank");
 					break;
 			}
 			break;
-		case 6: //NOTIFICATION
+		case pbuf.Response.ResponseType.NOTIFICATION:
 			console.log("Received NOTIFICATION");
 			alert(resp.notification.contentTitle + "\n" + resp.notification.contentText);
 			break;
-		case 7: //LOCATION
+		case pbuf.Response.ResponseType.LOCATION:
 			switch(resp.locationResponse.type) {
-				case 1:
+				case pbuf.LocationResponse.LocationResponseType.SUBSCRIBE:
 					switch(resp.locationResponse.subscribe.type) {
 						case 1: //SINGLE_UPDATE
 							updateLocation(resp.locationResponse.subscribe.provider);
@@ -169,7 +169,7 @@ function handleResponse(resp, socket, pbuf) {
 							}
 					}
 					break;
-				case 2:
+				case pbuf.LocationResponse.LocationResponseType.UNSUBSCRIBE:
 					// Do unsubscription
 					if(window.locationUpdateID != null) {
 						window.clearTimeout(window.locationUpdateID);
@@ -179,24 +179,24 @@ function handleResponse(resp, socket, pbuf) {
 			}
 			console.log("Received LOCATION");
 			break;
-		case 8: //VIDEOSTART
-		case 9: //VIDEOSTOP
-		case 10: //VIDEOPAUSE
+		case pbuf.Response.ResponseType.VIDEOSTART:
+		case pbuf.Response.ResponseType.VIDEOSTOP:
+		case pbuf.Response.ResponseType.VIDEOPAUSE:
 			break;
-		case 11: //WEBRTC
+		case pbuf.Response.ResponseType.WEBRTC:
 			// Handle WebRTC message
 			console.log("Received WebRTC: " + resp.webrtcMsg);
 			switch(resp.webrtcMsg.type) {
-				case 1: //OFFER
+				case pbuf.WebRTCMessage.WebRTCType.OFFER: //OFFER
 					console.log("Ignoring WebRTC offer");
 					break;
-				case 2: //ANSWER
+				case pbuf.WebRTCMessage.WebRTCType.ANSWER: //ANSWER
 					window.rtcpeer.addAnswerSDP(JSON.parse(resp.webrtcMsg.json));
 					break;
-				case 4:
+				case pbuf.WebRTCMessage.WebRTCType.BYE:
 					console.log("WebRTC message with bad type: " + resp.webrtcMsg.type);
 					break;
-				case 3: //CANDIDATE
+				case pbuf.WebRTCMessage.WebRTCType.CANDIDATE: //CANDIDATE
 				default:
 					cand = JSON.parse(resp.webrtcMsg.json);
 					console.log(cand);
@@ -212,10 +212,10 @@ function handleResponse(resp, socket, pbuf) {
 					break;
 			}
 			break;
-		case 12: //PING
+		case pbuf.Response.ResponseType.PING:
 			console.log("Pong!");
 			break;
-		case 13: //APPS
+		case pbuf.Response.ResponseType.APPS:
 			console.log("Received APPS");
 			break;
 	}
@@ -223,7 +223,6 @@ function handleResponse(resp, socket, pbuf) {
 
 function handleTouch(ev, socket, pbuf, touchtype) {
 	ev.preventDefault();
-	//console.log(window.currtouches);
 	var touchmsg = new pbuf.TouchEvent({});
 	var touchmsgs = new Array();
 	var canvas = document.getElementById("touchcanvas");
@@ -245,14 +244,14 @@ function handleTouch(ev, socket, pbuf, touchtype) {
 		for(var i = 0; i < window.currtouches.length; i++) {
 			touchmsg.items = touchmsgs;
 			touchmsg.action = ((window.currtouches[i].identifier > 0 ? touchtype + 5 : touchtype) | (window.currtouches[i].identifier << 8));
-			var cont = new pbuf.Container({"ctype" : 2, "request" : new pbuf.Request({"type" : 2, "touch" : touchmsg})});
+			var cont = new pbuf.Container({"ctype" : pbuf.Container.ContainerType.REQUEST, "request" : new pbuf.Request({"type" : pbuf.Request.RequestType.TOUCHEVENT, "touch" : touchmsg})});
 			socket.send(cont.encode().toArrayBuffer());
 		}
 	}
 	else {
 		touchmsg.items = touchmsgs;
 		touchmsg.action = touchtype;
-		var cont = new pbuf.Container({"ctype" : 2, "request" : new pbuf.Request({"type" : 2, "touch" : touchmsg})});
+		var cont = new pbuf.Container({"ctype" : pbuf.Container.ContainerType.REQUEST, "request" : new pbuf.Request({"type" : pbuf.Request.RequestType.TOUCHEVENT, "touch" : touchmsg})});
 		socket.send(cont.encode().toArrayBuffer());
 	}
 }
@@ -339,6 +338,6 @@ function handleRotation(ev, socket, pbuf) {
 			window.rotation = 0;
 		}
 	}
-	var cont = new pbuf.Container({"ctype" : 2, "request" : new pbuf.Request({"type" : 10, "rotationInfo" : new pbuf.RotationInfo({"rotation" : window.rotation})})});
+	var cont = new pbuf.Container({"ctype" : pbuf.Container.ContainerType.REQUEST, "request" : new pbuf.Request({"type" : pbuf.Request.RequestType.ROTATION_INFO, "rotationInfo" : new pbuf.RotationInfo({"rotation" : window.rotation})})});
 	socket.send(cont.encode().toArrayBuffer());
 }

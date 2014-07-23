@@ -56,20 +56,20 @@
 				var decodedcontainer = contbuilder.decode(ev.data);
 				console.log(decodedcontainer.ctype);
 				switch(decodedcontainer.ctype) {
-					case 0:
+					case pbuf.Container.ContainerType.CONNECT:
 						console.log("Erroneous CONNECT packet received");
 						break;
-					case 1:
+					case pbuf.Container.ContainerType.CONNECTED:
 						window.connected = true;
 						ws.send(window.authpacket.encode().toArrayBuffer());
 						break;
-					case 2:
+					case pbuf.Container.ContainerType.REQUEST:
 						console.log("Erroneous REQUEST packet receieved");
 						break;
-					case 3:
+					case pbuf.Container.ContainerType.RESPONSE:
 						handleResponse(decodedcontainer.response, ws, svmp);
 						break;
-					case 4:
+					case pbuf.Container.ContainerType.READPACKET:
 						console.log("Erroneous READPACKET packet received");
 						break;
 					default:
@@ -95,13 +95,13 @@
 				var username = $('#username').val();
 				var password = $('#password').val();
 				if(!window.connected) {
-					var connpacket = new svmp.Container({"ctype" : 0, "proxyhost" : host, "proxyport": parseInt(port)});
+					var connpacket = new svmp.Container({"ctype" : svmp.Container.ContainerType.CONNECT, "proxyhost" : host, "proxyport": parseInt(port)});
 					ws.send(connpacket.encode().toArrayBuffer());
 				}
 				if(!window.authenticated) {
-					var areq = new svmp.AuthRequest({"type" : 1, "username" : username, "password" : password});
-					var req = new svmp.Request({"type" : 0, "authRequest": areq});
-					window.authpacket = new svmp.Container({"ctype" : 2, "request" : req});
+					var areq = new svmp.AuthRequest({"type" : svmp.AuthRequest.AuthRequestType.AUTHENTICATION, "username" : username, "password" : password});
+					var req = new svmp.Request({"type" : svmp.Request.RequestType.AUTH, "authRequest": areq});
+					window.authpacket = new svmp.Container({"ctype" : svmp.Container.ContainerType.REQUEST, "request" : req});
 				}
 				if(window.connected && !window.authenticated) {
 					ws.send(window.authpacket.encode().toArrayBuffer());
