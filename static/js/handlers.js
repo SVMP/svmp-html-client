@@ -158,9 +158,9 @@ function handleResponse(resp, socket, pbuf) {
 			switch(resp.locationResponse.type) {
 				case pbuf.LocationResponse.LocationResponseType.SUBSCRIBE:
 					switch(resp.locationResponse.subscribe.type) {
-						case 1: //SINGLE_UPDATE
+						case pbuf.LocationSubscribe.LocationSubscribeType.SINGLE_UPDATE:
 							updateLocation(resp.locationResponse.subscribe.provider);
-						case 2: //MULTIPLE_UPDATES
+						case pbuf.LocationSubscribe.LocationSubscribeType.MULTIPLE_UPDATES:
 							if(typeof(resp.locationResponse.subscribe.minDistance) == "undefined") {
 								window.locationUpdateID = window.setTimeout(repeatUpdateLocation, resp.locationResponse.subscribe.minTime, pbuf, resp.locationResponse.subscribe.provider, resp.locationResponse.subscribe.minTime);
 							}
