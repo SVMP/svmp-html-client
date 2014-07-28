@@ -28,6 +28,7 @@
 		<script src="/static/js/dependencies/ProtoBuf.min.js"></script>
 		<script src="/static/js/dependencies/jquery-2.1.1.min.js"></script>
 		<script src="/static/js/dependencies/RTCPeerConnection-v1.5.js"></script>
+		<script src="/static/js/dependencies/jstz-1.0.4.min.js"></script>
 		<script src="/static/js/handlers.js"></script>
 		<script>
 			if(typeof(webkitRTCPeerConnection) == "function") {
@@ -56,20 +57,20 @@
 				var decodedcontainer = contbuilder.decode(ev.data);
 				console.log(decodedcontainer.ctype);
 				switch(decodedcontainer.ctype) {
-					case pbuf.Container.ContainerType.CONNECT:
+					case svmp.Container.ContainerType.CONNECT:
 						console.log("Erroneous CONNECT packet received");
 						break;
-					case pbuf.Container.ContainerType.CONNECTED:
+					case svmp.Container.ContainerType.CONNECTED:
 						window.connected = true;
 						ws.send(window.authpacket.encode().toArrayBuffer());
 						break;
-					case pbuf.Container.ContainerType.REQUEST:
+					case svmp.Container.ContainerType.REQUEST:
 						console.log("Erroneous REQUEST packet receieved");
 						break;
-					case pbuf.Container.ContainerType.RESPONSE:
+					case svmp.Container.ContainerType.RESPONSE:
 						handleResponse(decodedcontainer.response, ws, svmp);
 						break;
-					case pbuf.Container.ContainerType.READPACKET:
+					case svmp.Container.ContainerType.READPACKET:
 						console.log("Erroneous READPACKET packet received");
 						break;
 					default:

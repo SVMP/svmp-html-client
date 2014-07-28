@@ -54,26 +54,28 @@ function handleResponse(resp, socket, pbuf) {
 			break;
 		case pbuf.Response.ResponseType.AUTH:
 			switch(resp.authResponse.type) {
-				case pbuf.AuthResponse.AuthResponseType.AUTH_OK: //AUTH_OK
+				case pbuf.AuthResponse.AuthResponseType.AUTH_OK:
 					window.authenticated = true;
+					var tzreq = new pbuf.Request({"type" : pbuf.Request.RequestType.TIMEZONE, "timezoneId" : jstz.determine().name()});
+					var cont = new pbuf.Container({"ctype" : pbuf.Container.ContainerType.REQUEST, "request" : tzreq});
+					socket.send(cont.encode().toArrayBuffer());
 					break;
-				case pbuf.AuthResponse.AuthResponseType.AUTH_FAIL: //AUTH_FAIL
+				case pbuf.AuthResponse.AuthResponseType.AUTH_FAIL:
 					alert("Auth failed!");
 					break;
-				case pbuf.AuthResponse.AuthResponseType.SESSION_MAX_TIMEOUT: //SESSION_MAX_TIMEOUT
-				case pbuf.AuthResponse.AuthResponseType.SESSION_IDLE_TIMEOUT: //SESSION_IDLE_TIMEOUT
-				case pbuf.AuthResponse.AuthResponseType.NEED_PASSWORD_CHANGE: //NEED_PASSWORD_CHANGE
-				case pbuf.AuthResponse.AuthResponseType.PASSWORD_CHANGE_FAIL: //PASSWORD_CHANGE_FAIL
+				case pbuf.AuthResponse.AuthResponseType.SESSION_MAX_TIMEOUT:
+				case pbuf.AuthResponse.AuthResponseType.SESSION_IDLE_TIMEOUT:
+				case pbuf.AuthResponse.AuthResponseType.NEED_PASSWORD_CHANGE:
+				case pbuf.AuthResponse.AuthResponseType.PASSWORD_CHANGE_FAIL:
 					console.log("Got an unhandled authResponse type");
 					break;
 			}
 			break;
 		case pbuf.Response.ResponseType.VMREADY:
-			// VM is ready.
 			console.log("Received VMREADY: " + resp.message);
-			paramcont = new pbuf.Container({"ctype" : pbuf.Container.ContainerType.REQUEST, "request" : new pbuf.Request({"type" : pbuf.Request.RequestType.VIDEO_PARAMS})}); // Send VIDEO_PARAMS
+			paramcont = new pbuf.Container({"ctype" : pbuf.Container.ContainerType.REQUEST, "request" : new pbuf.Request({"type" : pbuf.Request.RequestType.VIDEO_PARAMS})});
 			socket.send(paramcont.encode().toArrayBuffer());
-			sinfo = new pbuf.Container({"ctype" : pbuf.Container.ContainerType.REQUEST, "request" : new pbuf.Request({"type" : pbuf.Request.RequestType.SCREENINFO})}); // Send SCREENINFO
+			sinfo = new pbuf.Container({"ctype" : pbuf.Container.ContainerType.REQUEST, "request" : new pbuf.Request({"type" : pbuf.Request.RequestType.SCREENINFO})});
 			socket.send(sinfo.encode().toArrayBuffer());
 			providerinfo = new pbuf.LocationProviderInfo({"provider" : "GPS_PROVIDER",
 														  "requiresNetwork" : true,
@@ -106,14 +108,13 @@ function handleResponse(resp, socket, pbuf) {
 			break;
 		case pbuf.Response.ResponseType.VIDSTREAMINFO:
 			console.log("Received VIDSTREAMINFO:\niceServers: " + resp.videoInfo.iceServers + "\npcConstraints: " + resp.videoInfo.pcConstraints + "\nvideoConstraints: " + resp.videoInfo.videoConstraints);
-			// Do something with iceServers
-			rtcmsgreq = new pbuf.Request({"type" : pbuf.Request.RequestType.WEBRTC}); //WEBRTC
-			rtcmsg = new pbuf.WebRTCMessage({"type" : pbuf.WebRTCMessage.WebRTCType.OFFER}); //OFFER
+			rtcmsgreq = new pbuf.Request({"type" : pbuf.Request.RequestType.WEBRTC});
+			rtcmsg = new pbuf.WebRTCMessage({"type" : pbuf.WebRTCMessage.WebRTCType.OFFER});
 			window.rtcpeer = RTCPeerConnection({
 				attachStream 	: null,
 				onICE			: function(candidate) {
-					tmpreq = new pbuf.Request({"type" : pbuf.Request.RequestType.WEBRTC}); //WEBRTC
-					tmprtc = new pbuf.WebRTCMessage({"type" : pbuf.WebRTCMessage.WebRTCType.CANDIDATE, "json" : JSON.stringify(candidate)}); //CANDIDATE
+					tmpreq = new pbuf.Request({"type" : pbuf.Request.RequestType.WEBRTC});
+					tmprtc = new pbuf.WebRTCMessage({"type" : pbuf.WebRTCMessage.WebRTCType.CANDIDATE, "json" : JSON.stringify(candidate)});
 					tmpreq.webrtcMsg = tmprtc
 					rtccont = new pbuf.Container({"ctype" : pbuf.Container.ContainerType.REQUEST, "request" : tmpreq});
 					socket.send(rtccont.encode().toArrayBuffer());
@@ -131,8 +132,8 @@ function handleResponse(resp, socket, pbuf) {
 					window.addEventListener("deviceorientation", function(ev) { handleRotation(ev, socket, pbuf); });
 				},
 				onOfferSDP		: function(sdp) {
-					tmpreq = new pbuf.Request({"type" : pbuf.Request.RequestType.WEBRTC}); //WEBRTC
-					tmprtc = new pbuf.WebRTCMessage({"type" : pbuf.WebRTCMessage.WebRTCType.OFFER, "json" : JSON.stringify(sdp)}); //OFFER
+					tmpreq = new pbuf.Request({"type" : pbuf.Request.RequestType.WEBRTC});
+					tmprtc = new pbuf.WebRTCMessage({"type" : pbuf.WebRTCMessage.WebRTCType.OFFER, "json" : JSON.stringify(sdp)});
 					tmpreq.webrtcMsg = tmprtc;
 					rtccont = new pbuf.Container({"ctype" : pbuf.Container.ContainerType.REQUEST, "request" : tmpreq});
 					socket.send(rtccont.encode().toArrayBuffer());
@@ -142,10 +143,10 @@ function handleResponse(resp, socket, pbuf) {
 		case pbuf.Response.ResponseType.INTENT:
 			console.log("Received INTENT:\naction: " + resp.intent.action + "\ndata: " + resp.intent.data);
 			switch(resp.intent.action) {
-				case pbuf.IntentAction.ACTION_VIEW: //ACTION_VIEW
+				case pbuf.IntentAction.ACTION_VIEW:
 					console.log("Somehow got an ACTION_VIEW");
 					break;
-				case pbuf.IntentAction.ACTION_DIAL: //ACTION_DIAL
+				case pbuf.IntentAction.ACTION_DIAL:
 					window.open(resp.intent.data, "_blank");
 					break;
 			}
@@ -184,19 +185,18 @@ function handleResponse(resp, socket, pbuf) {
 		case pbuf.Response.ResponseType.VIDEOPAUSE:
 			break;
 		case pbuf.Response.ResponseType.WEBRTC:
-			// Handle WebRTC message
 			console.log("Received WebRTC: " + resp.webrtcMsg);
 			switch(resp.webrtcMsg.type) {
-				case pbuf.WebRTCMessage.WebRTCType.OFFER: //OFFER
+				case pbuf.WebRTCMessage.WebRTCType.OFFER:
 					console.log("Ignoring WebRTC offer");
 					break;
-				case pbuf.WebRTCMessage.WebRTCType.ANSWER: //ANSWER
+				case pbuf.WebRTCMessage.WebRTCType.ANSWER:
 					window.rtcpeer.addAnswerSDP(JSON.parse(resp.webrtcMsg.json));
 					break;
 				case pbuf.WebRTCMessage.WebRTCType.BYE:
 					console.log("WebRTC message with bad type: " + resp.webrtcMsg.type);
 					break;
-				case pbuf.WebRTCMessage.WebRTCType.CANDIDATE: //CANDIDATE
+				case pbuf.WebRTCMessage.WebRTCType.CANDIDATE:
 				default:
 					cand = JSON.parse(resp.webrtcMsg.json);
 					console.log(cand);
