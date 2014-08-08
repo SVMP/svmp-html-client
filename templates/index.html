@@ -55,7 +55,7 @@
 			ws.onmessage = function(ev) {
 				var contbuilder = builder.build("svmp.Container");
 				var decodedcontainer = contbuilder.decode(ev.data);
-				console.log(decodedcontainer.ctype);
+				//console.log(decodedcontainer.ctype);
 				switch(decodedcontainer.ctype) {
 					case svmp.Container.ContainerType.CONNECT:
 						console.log("Erroneous CONNECT packet received");
